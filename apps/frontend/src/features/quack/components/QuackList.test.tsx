@@ -38,6 +38,30 @@ describe("QuackList", () => {
     expect(screen.queryByText("Mood:")).not.toBeInTheDocument()
   })
 
+  it("says nothing matched when a search finds no quacks", () => {
+    render(
+      <QuackList
+        quacks={[]}
+        search="pond"
+      />,
+    )
+
+    expect(screen.getByText('No quacks match "pond".')).toBeInTheDocument()
+    expect(screen.queryByText(/no quacks yet/i)).not.toBeInTheDocument()
+  })
+
+  it("doesn't claim nothing matched while a search is still loading", () => {
+    render(
+      <QuackList
+        quacks={[]}
+        search="pond"
+        isLoading
+      />,
+    )
+
+    expect(screen.queryByText(/no quacks match/i)).not.toBeInTheDocument()
+  })
+
   it("shows an error with a working reload button", async () => {
     const onReload = vi.fn()
     render(

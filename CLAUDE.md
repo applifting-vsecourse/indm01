@@ -26,6 +26,10 @@ Need a control that isn't in `src/components/ui/`? Add it with `pnpm dlx shadcn@
 
 The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md`](DESIGN.md) keeps shadows for things that genuinely float — dialogs, dropdowns, toasts. Strip them.
 
+### Escape user input in Prisma text filters
+
+Prisma passes `contains`/`startsWith`/`endsWith` values to `LIKE` unescaped, so `%` and `_` from a user act as wildcards (searching `%` matches everything). Escape `\`, `%` and `_` in the repository. Repository tests mock Prisma and won't catch this — run a new filter once against the dev database.
+
 ### The app is already running
 
 Assume the dev servers are up. If something is listening on the app's ports, that is this application: use it. Don't start a second instance, don't restart it, don't run `pnpm dev`.
