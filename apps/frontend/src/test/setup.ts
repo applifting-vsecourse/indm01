@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest"
+
 import { vi } from "vitest"
 
 // jsdom lacks the pointer-capture and scrolling APIs Radix Select calls when
