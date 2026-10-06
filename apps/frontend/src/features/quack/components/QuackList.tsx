@@ -11,9 +11,11 @@ type QuackListProps = {
   isLoading?: boolean
   error?: Error
   onReload?: () => void
+  /** The active search, so an empty list can say nothing matched rather than nothing exists. */
+  search?: string
 }
 
-export function QuackList({ quacks, isLoading, error, onReload }: QuackListProps) {
+export function QuackList({ quacks, isLoading, error, onReload, search }: QuackListProps) {
   return (
     <div className="flex flex-col">
       {isLoading && quacks.length === 0 ? (
@@ -46,7 +48,7 @@ export function QuackList({ quacks, isLoading, error, onReload }: QuackListProps
 
       {!isLoading && !error && quacks.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No quacks yet. Post the first one.
+          {search ? `No quacks match "${search}".` : "No quacks yet. Post the first one."}
         </p>
       ) : null}
 
