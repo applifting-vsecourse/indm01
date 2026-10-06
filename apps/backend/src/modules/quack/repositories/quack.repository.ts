@@ -24,11 +24,6 @@ const mapPrismaQuackToDomain = (
     : undefined,
 });
 
-// Prisma passes `contains` through to (I)LIKE unescaped, so a search for "%"
-// or "_" would otherwise match every quack.
-const escapeLikePattern = (value: string): string =>
-  value.replace(/[\\%_]/g, '\\$&');
-
 /**
  * If you decide to choose a different ORM or database, you should only need to change the repository files methods implementation.
  * Inject what you need instead of PrismaService and re-implement the methods and model mapping.
@@ -37,25 +32,8 @@ const escapeLikePattern = (value: string): string =>
 export class QuackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * With `words`, returns only quacks where every word appears (case-insensitive)
-   * in the text, the author's name or the author's username.
-   */
-  async getQuacks(filter?: { words: string[] }): Promise<Quack[]> {
+  async getQuacks(): Promise<Quack[]> {
     const quacks = await this.prisma.quack.findMany({
-      where: filter
-        ? {
-            AND: filter.words.map(escapeLikePattern).map((word) => ({
-              OR: [
-                { text: { contains: word, mode: 'insensitive' } },
-                { user: { name: { contains: word, mode: 'insensitive' } } },
-                {
-                  user: { username: { contains: word, mode: 'insensitive' } },
-                },
-              ],
-            })),
-          }
-        : undefined,
       include: { user: true },
       orderBy: { createdAt: 'desc' },
     });

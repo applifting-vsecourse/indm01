@@ -5,12 +5,8 @@ import { api } from "@/lib/api-client"
 import { quackKeys } from "@/features/quack/api/quackKeys"
 import { quacksSchema } from "@/features/quack/api/quackSchemas"
 
-// An empty search is the full feed — the server treats it the same way.
-export const quacksQueryOptions = (search = "") =>
+export const quacksQueryOptions = () =>
   queryOptions({
-    queryKey: quackKeys.list(search),
-    queryFn: async () =>
-      quacksSchema.parse(
-        await api.get("quacks", { searchParams: search ? { q: search } : undefined }).json(),
-      ),
+    queryKey: quackKeys.lists(),
+    queryFn: async () => quacksSchema.parse(await api.get("quacks").json()),
   })

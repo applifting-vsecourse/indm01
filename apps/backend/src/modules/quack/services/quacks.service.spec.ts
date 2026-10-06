@@ -3,7 +3,6 @@
 import { Quack } from '@/modules/quack/domain/quack';
 import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
-import { Logger } from '@nestjs/common';
 import { mock } from 'jest-mock-extended';
 import { QuacksService } from './quacks.service';
 
@@ -25,68 +24,9 @@ describe('QuacksService', () => {
     repository.getQuacks.mockResolvedValue(quacks);
 
     const service = new QuacksService(repository);
-    const user = { id: 'u1' } as Identity;
 
-    await expect(service.getQuacks(user)).resolves.toEqual(quacks);
+    await expect(service.getQuacks()).resolves.toEqual(quacks);
     expect(repository.getQuacks).toHaveBeenCalledTimes(1);
-    expect(repository.getQuacks).toHaveBeenCalledWith();
-  });
-
-  describe('search', () => {
-    let log: jest.SpyInstance;
-
-    beforeEach(() => {
-      log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    });
-
-    afterEach(() => {
-      log.mockRestore();
-    });
-
-    it('splits the search into words and drops a leading @', async () => {
-      const repository = mock<QuackRepository>();
-      repository.getQuacks.mockResolvedValue([]);
-      const service = new QuacksService(repository);
-
-      await service.getQuacks(
-        { id: 'u1' } as Identity,
-        '  pond   @CaffeinatedDuck ',
-      );
-
-      expect(repository.getQuacks).toHaveBeenCalledWith({
-        words: ['pond', 'CaffeinatedDuck'],
-      });
-    });
-
-    it.each(['', '   ', '@', ' @ @ '])(
-      'treats %j as no search and logs nothing',
-      async (search) => {
-        const repository = mock<QuackRepository>();
-        repository.getQuacks.mockResolvedValue([]);
-        const service = new QuacksService(repository);
-
-        await service.getQuacks({ id: 'u1' } as Identity, search);
-
-        expect(repository.getQuacks).toHaveBeenCalledWith();
-        expect(log).not.toHaveBeenCalled();
-      },
-    );
-
-    it('logs each search with who searched and how many quacks matched', async () => {
-      const repository = mock<QuackRepository>();
-      repository.getQuacks.mockResolvedValue([aQuack(), aQuack({ id: 'q2' })]);
-      const service = new QuacksService(repository);
-
-      await service.getQuacks({ id: 'u1' } as Identity, ' pond ');
-
-      expect(log).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(log.mock.calls[0][0] as string)).toEqual({
-        event: 'quack_search',
-        userId: 'u1',
-        query: 'pond',
-        resultCount: 2,
-      });
-    });
   });
 
   it('creates a quack owned by the signed-in user', async () => {
