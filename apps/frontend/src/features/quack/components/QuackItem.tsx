@@ -3,12 +3,17 @@ import { formatDate } from "@/lib/date"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
 import { QuackMoodLabel } from "@/features/quack/components/QuackMoodLabel"
+import { QuackPoll } from "@/features/quack/components/QuackPoll"
 import { UsersName } from "@/features/quack/components/UsersName"
 import { UsersUserName } from "@/features/quack/components/UsersUserName"
 
-type QuackItemProps = { quack: Quack }
+type QuackItemProps = {
+  quack: Quack
+  /** The signed-in user, so a poll knows whether they asked it. */
+  currentUserId?: string
+}
 
-export function QuackItem({ quack }: QuackItemProps) {
+export function QuackItem({ quack, currentUserId }: QuackItemProps) {
   const { name, username } = quack.user
 
   const initials = name
@@ -39,6 +44,14 @@ export function QuackItem({ quack }: QuackItemProps) {
           ) : null}
         </div>
         <p className="text-sm break-words whitespace-pre-line">{quack.text}</p>
+        {quack.poll ? (
+          <QuackPoll
+            quackId={quack.id}
+            authorId={quack.userId}
+            currentUserId={currentUserId}
+            poll={quack.poll}
+          />
+        ) : null}
       </div>
     </article>
   )

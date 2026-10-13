@@ -13,9 +13,18 @@ type QuackListProps = {
   onReload?: () => void
   /** The active search, so an empty list can say nothing matched rather than nothing exists. */
   search?: string
+  /** The signed-in user, passed on to polls so the author can't vote in their own. */
+  currentUserId?: string
 }
 
-export function QuackList({ quacks, isLoading, error, onReload, search }: QuackListProps) {
+export function QuackList({
+  quacks,
+  isLoading,
+  error,
+  onReload,
+  search,
+  currentUserId,
+}: QuackListProps) {
   return (
     <div className="flex flex-col">
       {isLoading && quacks.length === 0 ? (
@@ -56,6 +65,7 @@ export function QuackList({ quacks, isLoading, error, onReload, search }: QuackL
         <QuackItem
           key={quack.id}
           quack={quack}
+          currentUserId={currentUserId}
         />
       ))}
     </div>
