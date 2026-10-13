@@ -1,11 +1,12 @@
 import { useCallback } from "react"
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useIsMutating, useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 
 import { Seo } from "@/components/Seo"
 
 import { useSession } from "@/features/auth/hooks/useSession"
+import { quackKeys } from "@/features/quack/api/quackKeys"
 import { quacksQueryOptions } from "@/features/quack/api/quacksQueryOptions"
 import { QuackForm } from "@/features/quack/components/QuackForm"
 import { QuackList } from "@/features/quack/components/QuackList"
@@ -16,6 +17,10 @@ const quacksSearchParamsSchema = z.object({
   // URL that's too long falls back to the full feed instead of an error page.
   q: z.coerce.string().trim().max(SEARCH_MAX_LENGTH).optional().catch(undefined),
 })
+
+// How often the feed refetches, so votes from other people show up without a
+// reload. It stops while the tab is in the background (the default).
+const POLL_REFETCH_MS = 15_000
 
 export const Route = createFileRoute("/_ProtectedPages/quacks")({
   component: QuacksPage,
@@ -28,9 +33,14 @@ function QuacksPage() {
   const navigate = Route.useNavigate()
   // Keep the previous results on screen while the next search loads, so the
   // list doesn't blank out on every pause in typing.
+  // Other people's votes arrive by refetching. Pause that while one of our own
+  // votes is on its way: a refetch that starts before the server has saved it
+  // would bring back the old counts over the optimistic ones.
+  const isVoting = useIsMutating({ mutationKey: quackKeys.pollVotes() }) > 0
   const quacksQuery = useQuery({
     ...quacksQueryOptions(search),
     placeholderData: keepPreviousData,
+    refetchInterval: isVoting ? false : POLL_REFETCH_MS,
   })
 
   const handleSearch = useCallback(
@@ -64,6 +74,7 @@ function QuacksPage() {
           isLoading={quacksQuery.isLoading || quacksQuery.isPlaceholderData}
           error={quacksQuery.error ?? undefined}
           search={search}
+          currentUserId={user?.id}
           // Only the error state offers a retry — posting invalidates the list,
           // and refocusing the tab refetches it.
           onReload={() => void quacksQuery.refetch()}

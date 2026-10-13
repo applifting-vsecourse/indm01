@@ -39,9 +39,55 @@ model Quack {
   userId    String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @default(now()) @updatedAt
+  poll      Poll?
 
   @@index([userId])
   @@map("quack")
+}
+
+model Poll {
+  id        String       @id @default(cuid())
+  quack     Quack        @relation(fields: [quackId], references: [id], onDelete: Cascade)
+  quackId   String       @unique
+  closesAt  DateTime
+  createdAt DateTime     @default(now())
+  answers   PollAnswer[]
+  votes     PollVote[]
+
+  @@map("poll")
+}
+
+model PollAnswer {
+  id       String     @id @default(cuid())
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId   String
+  text     String     @db.VarChar(50)
+  position Int
+  votes    PollVote[]
+
+  @@unique([pollId, position])
+  // Target for PollVote's compound foreign key below.
+  @@unique([id, pollId])
+  @@map("poll_answer")
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId    String
+  // Compound FK: the database refuses a vote whose answer belongs to another poll.
+  answer    PollAnswer @relation(fields: [answerId, pollId], references: [id, pollId], onDelete: Cascade)
+  answerId  String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+
+  // One person, one vote — enforced by the database, not just the service.
+  @@unique([pollId, userId])
+  @@index([answerId])
+  @@index([userId])
+  @@map("poll_vote")
 }
 
 model Session {
@@ -103,6 +149,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   quacks          Quack[]
+  pollVotes       PollVote[]
   role            UserRole  @default(user)
 
   username        String?    @db.VarChar(50)

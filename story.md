@@ -1,103 +1,142 @@
-# Story: Search the quack feed
+# Story: Polls on quacks
 
 ## Who, what, why
 
-**As** a signed-in Quacker user who remembers a post I saw earlier,
-**I want** to type a word from it or its author's name and see only the quacks that match,
-**so that** I can find that post again without scrolling through the whole feed.
+**As** a signed-in Quacker user who wants the group to decide something (where do we go for lunch?),
+**I want** to post a question with a few answers that everyone else can pick from,
+**so that** I can see how many people chose each answer without counting replies by hand.
 
-People keep telling us they can't find a post they saw last week. This is a deliberately small first version. The goal is to find out whether people search at all, not to build full-text search.
+Today people ask in a post and count the replies themselves. Someone always gets the numbers wrong, and the question gets buried under the replies. This is a small first version. The goal is to see whether people use polls at all.
 
 ## Decisions
 
 All decisions below have been confirmed with the product owner.
 
-| Topic               | Decision                                                                                                                                                       |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What is searched    | Quack text, the author's display name, and the author's @username. Mood is not searched.                                                                       |
-| Several words       | Every word must match. Each word can match the text, the name or the username, in any order.                                                                   |
-| Matching            | Matching ignores case and also matches part of a word (`duck` matches "Ducks"). Accents must match exactly: `kachna` does not find "káchna".                   |
-| Leading `@`         | A leading `@` is stripped from a word, so `@DeepDuckThoughts` matches the username.                                                                            |
-| When results update | As you type, about 300 ms after the user stops typing. There is no submit button.                                                                              |
-| Where               | Only the `/quacks` feed page.                                                                                                                                  |
-| URL                 | The query lives in the URL (`/quacks?q=crumb`). Refresh, Back and shared links keep the search.                                                                |
-| Order               | Newest first, the same as the feed.                                                                                                                            |
-| Post form           | The form stays visible while searching. A new post appears in the results only if it matches the current query. Otherwise it shows once the search is cleared. |
-| Query length        | The query can be at most 100 characters.                                                                                                                       |
-| Measuring use       | Search runs on the backend. Each search writes one structured log line. Nothing is stored in the database.                                                     |
+| Topic                | Decision                                                                                                                                                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What a poll is       | A poll is attached to a quack. The quack text is the question. A poll quack appears in the feed like any other quack and can have a mood.                                                                                                                                |
+| Answers              | 2 to 4 answers, each 1 to 50 characters after trimming. Two answers can't have the same text (case and surrounding spaces are ignored).                                                                                                                                  |
+| Deadline             | The author picks how long the poll is open: 1 hour, 1 day (preselected) or 1 week. After that, voting is closed for good. There is no other way to close a poll.                                                                                                         |
+| Who can vote         | Every signed-in user except the author.                                                                                                                                                                                                                                  |
+| One person, one vote | Each person has at most one vote per poll. Clicking another answer moves the vote there. Clicking your current answer removes your vote.                                                                                                                                 |
+| Counts               | Everyone sees the counts at all times, including before voting. Each answer shows a bar, the count and a whole-number percentage. The total number of votes is shown below the answers.                                                                                  |
+| Anonymity            | Only counts are shown. Nobody can see who voted for what. You can see which answer you picked (✓).                                                                                                                                                                       |
+| Feels instant        | A vote shows up immediately, before the server answers.                                                                                                                                                                                                                  |
+| Failed vote          | If the server doesn't accept the vote, the poll goes back to how it was and a message appears under that poll. The message goes away on the next vote attempt.                                                                                                           |
+| Other people's votes | The feed refetches every 15 seconds while the tab is visible, and also when you come back to the tab and after you vote. The counts shown always come from the server. There are no live pushes.                                                                         |
+| Closing on screen    | The poll switches to closed exactly at its deadline, without waiting for a refetch. The server rejects late votes in any case.                                                                                                                                           |
+| Closed poll          | Shows the final bars and counts, and the answers are no longer buttons. The answer(s) with the most votes are bold with a trophy icon. All tied leaders are highlighted. With zero votes, nothing is highlighted.                                                        |
+| Time left            | Shown in the largest unit that fits, rounded up: up to 60 minutes `N min`, up to 24 hours `N h`, beyond that `N d`. With only seconds left it reads `1 min`. A fresh 1-hour poll reads `Closes in 60 min`, a 1-day poll `Closes in 24 h`, a 1-week poll `Closes in 7 d`. |
+| Search               | Feed search also matches poll answer text. Searching `pizza` finds a poll with a "Pizza" answer.                                                                                                                                                                         |
+| Editing              | Quacks can't be edited or deleted today, so polls can't either. Question, answers and deadline are fixed once posted.                                                                                                                                                    |
+| Measuring use        | Polls and votes are in the database anyway. Usage is read with SQL after two weeks. No log events or analytics.                                                                                                                                                          |
 
 ## Out of scope
 
-- Highlighting the matched words
-- Ignoring accents (Postgres `unaccent`), stemming, ranking by relevance, typo tolerance
-- Searching by date or mood, and filters in general
-- Clicking an author to search for their posts
-- Paging and infinite scroll (the feed has none today either)
-- A search page of its own, search in the header, or search on the landing page
-- An analytics tool or a database table for search events
+- Live updates over websockets or SSE
+- Seeing who voted, or voter lists per answer
+- Closing a poll early, extending it, or a custom deadline with a date picker
+- Editing or deleting a poll, its answers or its votes
+- Choosing several answers (multiple choice), ranked voting, or "other" with free text
+- Notifications ("your poll closed", "someone voted")
+- Polls outside the `/quacks` feed (separate page, header, landing page)
+- Filtering the feed to polls only
 
 ## Acceptance criteria
 
-Each criterion can be checked in the browser on `/quacks` while signed in, and has a yes or no answer.
+Each criterion can be checked in the browser on `/quacks`. Some need two signed-in users (e.g. two browsers or a private window). Each has a yes or no answer.
 
-**The search input**
+**Creating a poll**
 
-1. Above the list there is a text input with the visible label "Search quacks" and the placeholder "e.g. pond or @CaffeinatedDuck".
-2. There is no Search button. The list updates while typing, without pressing Enter.
-3. The input won't take more than 100 characters.
+1. Under the quack text field there is an "Add poll" button. Clicking it shows two empty answer inputs labelled "Answer 1" and "Answer 2", and a "Poll length" select with 1 hour, 1 day and 1 week. 1 day is preselected.
+2. An "Add answer" button adds a third and then a fourth input. With four answers, the button is gone.
+3. With more than two answers, each answer input has a remove button (×) that screen readers announce as "Remove answer N". With exactly two, there are no remove buttons.
+4. A "Remove poll" button hides the poll fields, and the quack posts as a plain quack.
+5. Submitting with an empty answer shows "Fill in this answer" under that input. Nothing is posted.
+6. An answer input won't take more than 50 characters.
+7. Two answers with the same text (e.g. "Pizza" and " pizza ") show "Answers must be different" under the second one. Nothing is posted.
+8. A valid poll posts. It appears at the top of the feed, and the form goes back to a plain empty quack form.
 
-**Matching**
+**Seeing a poll**
 
-4. Typing a word that appears in a quack's text shows that quack. Quacks that don't contain the word disappear.
-5. Typing part of an author's display name, e.g. `caffein`, shows only that author's quacks.
-6. Typing an author's username with or without `@` (`@CaffeinatedDuck` or `CaffeinatedDuck`) shows only that author's quacks.
-7. Case doesn't matter: `POND` and `pond` give the same results.
-8. With two words, e.g. an author's name plus a word from one of their quacks, only quacks that match **both** are shown.
-9. Results stay newest first.
+9. A poll quack shows the question (the quack text), then each answer as a full-width row with a bar, the answer text, the count and the percentage, e.g. `Pizza 5 · 50%`.
+10. Below the answers, the footer shows the total and the time left, e.g. `10 votes · Closes in 3 h`. The time left follows the "Time left" decision (e.g. `Closes in 45 min`, `Closes in 3 h`, `Closes in 6 d`), and the footer shows `1 vote` in the singular.
+11. Percentages are whole numbers, and a poll with 0 votes shows `0 · 0%` on every answer.
 
-**URL and navigation**
+**Voting (as someone other than the author)**
 
-10. After typing `pond`, the address bar shows `/quacks?q=pond`.
-11. Reloading that page shows `pond` in the input and the same filtered results.
-12. Opening `/quacks?q=pond` directly in a new tab shows the same filtered results.
+12. Clicking an answer immediately shows ✓ on it, adds one to its count and updates all percentages and the total. There is no visible wait.
+13. After voting, the footer also shows _Click your answer again to remove your vote._
+14. Clicking a different answer moves the ✓ there. The old answer loses one, the new one gains one, and the total stays the same.
+15. Clicking the ✓ answer again removes the vote. Its count drops by one, the total drops by one and the hint disappears.
+16. Reloading the page keeps your vote and shows the same counts.
+17. A second user who votes on the same poll sees their vote counted. Within about 15 seconds, the first user sees it too without reloading.
+18. Two users voting at the same time each count once. After both reloads, the totals are identical in both browsers.
 
-**Clearing**
+**Author**
 
-13. A clear button (×) appears only when the input has text. Screen readers announce it as "Clear search".
-14. Clicking it empties the input, removes `?q=` from the URL and shows the full feed.
-15. Deleting the text by hand also shows the full feed again.
+19. On their own poll, the author sees the bars, counts and countdown. The answers are not clickable, and there is no vote hint.
 
-**Posting while searching**
+**Failed vote**
 
-16. While a search is active, posting a quack that matches the query adds it to the top of the results.
-17. Posting a quack that does not match clears the form, but the quack is not shown. After clearing the search it is at the top of the feed.
+20. With DevTools set to _Offline_, clicking an answer shows the vote briefly. It then goes back to the previous state, and the message _Your vote didn't go through. Try again._ appears under that poll.
+21. Going back online and clicking again removes the message, and the vote goes through.
 
-## When there's nothing to show
+**Closing**
 
-18. **No matches.** When the query matches nothing, the list area shows _No quacks match "‹query›"._ It is not a blank area. The input still has the query, and the clear button works.
-19. **Empty query.** An empty query, only spaces, or only `@` shows the full feed. No "no matches" message appears.
-20. **No quacks at all.** With no search and an empty database, the existing _No quacks yet. Post the first one._ message still appears.
-21. **Loading.** While the next results load, the previous results stay visible, so the list doesn't go blank. On the first load of the page, the existing spinner shows.
-22. **Error.** If the search request fails (e.g. DevTools set to _Offline_), the list shows the existing error alert with a Reload button. Reloading after going back online shows the results for the same query.
+22. When the deadline passes with the page open, the poll switches to closed at that moment, without a reload. The answers are no longer buttons, and the footer reads `10 votes · Closed`.
+23. In a closed poll, the answer with the most votes is bold with a trophy icon that screen readers announce as "Winner".
+24. When two answers tie for the most votes, both are highlighted.
+25. A closed poll with no votes highlights nothing, and its footer reads `No votes · Closed`.
+26. Your own pick keeps its ✓ after the poll closes.
+27. If a vote reaches the server after the deadline (e.g. the clock on the computer is wrong), the poll goes back to its previous state, shows _This poll has closed._ and switches to closed.
+
+**Search**
+
+28. Searching a word that appears only in a poll answer (e.g. `pizza`) shows that poll quack.
+
+**Accessibility**
+
+29. Each answer button announces its text, count and percentage, and whether it is selected (`aria-pressed`). The bars themselves are not announced.
+30. The failed-vote message is announced by screen readers when it appears.
 
 ## Technical notes
 
-**Backend** (covered by unit tests in `quacks.service.spec.ts`, since none of this is visible in the browser)
+**Data model** (one migration via `pnpm backend prisma:migrations:run`)
 
-- `GET /api/quacks` accepts an optional `q` query param, validated by a DTO (`@IsOptional() @IsString() @MaxLength(100)`) and documented in Swagger. A longer `q` returns `400`.
-- The service splits `q` on whitespace, strips one leading `@` from each word, and drops empty words. If no words are left, it returns the full feed and logs nothing.
-- The repository uses a Prisma `where: { AND: words.map(w => ({ OR: [text contains w, user.name contains w, user.username contains w] })) }` with `mode: 'insensitive'`. No new index is needed at this size.
-- Each non-empty search logs via Nest `Logger`: `{ event: 'quack_search', userId, query, resultCount }`.
+- `Poll`: `id`, `quackId` (unique, cascade delete), `closesAt`, `createdAt`.
+- `PollAnswer`: `id`, `pollId` (cascade), `text` (`VarChar(50)`), `position`.
+- `PollVote`: `id`, `pollId`, `answerId`, `userId` (all cascade), `createdAt`, `updatedAt`, with `@@unique([pollId, userId])`. The database enforces one vote per person per poll.
+- Counts are never stored. They are always computed from `PollVote` rows (`groupBy answerId` / `_count`), so they can't drift.
+- The seed adds one open poll and one closed poll with a few votes from different seed users.
+
+**Backend**
+
+- `POST /api/quacks` accepts an optional `poll: { answers: string[], duration: '1h' | '1d' | '1w' }` using a nested DTO: `@ArrayMinSize(2) @ArrayMaxSize(4)`, each answer `@IsString() @IsNotEmpty() @MaxLength(50)` after trim, and `@IsIn` for the duration. The service rejects duplicate answers (case-insensitive, trimmed) with `400` and computes `closesAt = now + duration` on the server. The quack, poll and answers are created in one transaction.
+- `PUT /api/quacks/:quackId/poll/vote` with body `{ answerId }` casts or moves the vote (upsert on `pollId + userId`). `DELETE /api/quacks/:quackId/poll/vote` removes it. Both are idempotent and take the voter from the session.
+- Errors: `404` if there's no quack or poll, `400` if the answer is not in this poll, `403` if the voter is the author, `409` if `closesAt <= now` (body message "This poll has closed.").
+- Both vote endpoints return the updated poll, so the client can reconcile with the exact server counts.
+- `QuackResponseDto` gets `poll: { id, closesAt, isClosed, totalVotes, myAnswerId | null, answers: [{ id, text, votes }] } | null`. `isClosed` is decided by the server's clock. Answers are ordered by `position`, and `myAnswerId` is for the requesting user. Document everything in Swagger.
+- Where this section and [`plan.md`](plan.md) differ in detail (file layout, mutation handling), `plan.md` is the more specific one.
+- Search: add a fourth branch to the per-word `OR` in `QuackRepository.getQuacks`, `{ poll: { answers: { some: { text: { contains: word, mode: 'insensitive' } } } } }`, using the same `escapeLikePattern`. Run it once against the dev DB (see CLAUDE.md).
+- Unit tests in `quacks.service.spec.ts` (or a new `polls.service.spec.ts`): duplicate answers are rejected, `closesAt` is computed from the duration, the author can't vote (403), a closed poll rejects votes (409), a vote moves or is removed, and an answer from another poll is rejected (400).
 
 **Frontend**
 
-- `quackKeys` and `quacksQueryOptions` take an optional `q`, so each query is cached separately. `addQuack` keeps invalidating all quack lists.
-- The `q` search param is validated with zod on the `/_ProtectedPages/quacks` route. The input is debounced at 300 ms before the URL is updated.
-- `placeholderData: keepPreviousData` keeps the previous results visible while the next ones load.
-- `QuackList` gets a "no matches" empty state, separate from "No quacks yet".
-- Use the kit `Input`, `Label` and `Button` (ghost, icon-only with `aria-label`). Follow `DESIGN.md`: no shadow on the input, no card around the search.
-- Tests: the no-match empty state in `QuackList.test.tsx`, plus a test for clearing the search.
+- zod `pollSchema` in `quackSchemas.ts`. `addQuack` sends the optional poll.
+- `QuackForm`: poll fields via react-hook-form `useFieldArray`, with the same rules in the zod schema (2–4 answers, 1–50 chars, unique after trim/lowercase). Use the kit `Input`, `Select`, `Button` (ghost, icon-only with `aria-label` for ×). Strip shadows per CLAUDE.md.
+- `useVote` mutation:
+  - `onMutate`: `cancelQueries` on the quack lists, snapshot, then optimistically update `myAnswerId`, counts and total in every cached quack list.
+  - `onError`: restore the snapshot and set the per-poll error message. A `409` uses "This poll has closed." and also marks the poll closed.
+  - `onSuccess` and `onSettled`: write the server's poll and invalidate the lists, but only for the last pending vote on that poll, so a queued click isn't overwritten.
+  - `scope: { id: pollId }`, so rapid clicks run in order and the last click wins.
+- The 15 s `refetchInterval` is set on the feed page (`refetchIntervalInBackground` stays `false`) and is switched off while a vote is pending, so a refetch can't bring back the old counts over an optimistic vote.
+- `QuackPoll` component, rendered inside `QuackItem` with no card or border of its own (DESIGN.md: no nested cards).
+  - Answers are `<button aria-pressed>` with a hairline border and `rounded-md`. The bar is an `aria-hidden` div with `bg-secondary` and a width from the percentage.
+  - The trophy is a lucide icon with `aria-label="Winner"`. The error message uses `text-destructive` and `role="alert"`.
+  - Closed is `isClosed` from the server, or the client clock passing `closesAt` (a timer set to the deadline flips the poll exactly then), or a `409` from a vote. The countdown re-renders once a minute.
+- Tests: optimistic vote and rollback on error, move and remove vote, closed rendering with winner, ties and zero votes, author view, and form validation (empty answer, duplicates, add/remove answer limits).
 
 ## How we'll read the result
 
-After two weeks, count the `quack_search` log lines: the number of searches, the number of distinct users who searched, and the share of searches with `resultCount = 0`. Many zero-result searches would point to what to build next (accent folding or typo tolerance).
+After two weeks, query the database for: the number of polls created, the number of distinct poll authors, the number of distinct voters, the median votes per poll, and the share of votes that were changed (`updatedAt > createdAt`). Few polls, or polls with only one or two votes, would say the feature isn't worth growing. Many changed votes would back the "let people change their minds" decision.

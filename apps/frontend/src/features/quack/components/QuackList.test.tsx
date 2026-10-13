@@ -1,10 +1,15 @@
 // Example component test — the pattern to copy for your own components.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
 import { QuackList } from "@/features/quack/components/QuackList"
+
+// A poll talks to the API, which isn't the point of a list test (and the real
+// client needs a configured environment to even import).
+vi.mock("@/features/quack/api/vote", () => ({ castVote: vi.fn(), removeVote: vi.fn() }))
 
 const quack = (overrides: Partial<Quack> = {}): Quack => ({
   id: "q1",
@@ -13,6 +18,7 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
   userId: "u1",
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
+  poll: null,
   ...overrides,
 })
 
@@ -30,6 +36,40 @@ describe("QuackList", () => {
 
     expect(screen.getByText("Silly")).toBeInTheDocument()
     expect(screen.getByText("Mood:")).toBeInTheDocument()
+  })
+
+  it("shows the poll of a quack that has one", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList
+          currentUserId="u2"
+          quacks={[
+            quack({
+              poll: {
+                id: "p1",
+                closesAt: new Date("2099-01-01T12:00:00Z"),
+                isClosed: false,
+                totalVotes: 1,
+                myAnswerId: null,
+                answers: [
+                  { id: "a1", text: "Pizza", votes: 1 },
+                  { id: "a2", text: "Thai", votes: 0 },
+                ],
+              },
+            }),
+          ]}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByRole("button", { name: "Pizza, 1 vote, 100%" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Thai, 0 votes, 0%" })).toBeInTheDocument()
+  })
+
+  it("shows no poll for a plain quack", () => {
+    render(<QuackList quacks={[quack()]} />)
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument()
   })
 
   it("shows no mood for a quack without one", () => {
