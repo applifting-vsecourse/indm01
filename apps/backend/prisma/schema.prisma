@@ -105,8 +105,10 @@ model User {
   quacks          Quack[]
   role            UserRole  @default(user)
 
-  username        String? @db.VarChar(50)
-  displayUsername String? @db.VarChar(50)
+  username        String?    @db.VarChar(50)
+  displayUsername String?    @db.VarChar(50)
+  bio             String?    @db.VarChar(160)
+  defaultMood     QuackMood?
 
   @@unique([email])
   @@unique([username])

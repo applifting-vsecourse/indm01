@@ -41,6 +41,16 @@ const createAuth = (
           defaultValue: 'user',
           input: false,
         },
+        bio: {
+          type: 'string',
+          required: false,
+          input: true,
+        },
+        defaultMood: {
+          type: 'string',
+          required: false,
+          input: true,
+        },
       },
     },
     trustedOrigins: [config.frontendUrl],
