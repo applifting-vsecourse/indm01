@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { Seo } from "@/components/Seo"
 
+import { useSession } from "@/features/auth/hooks/useSession"
 import { quacksQueryOptions } from "@/features/quack/api/quacksQueryOptions"
 import { QuackForm } from "@/features/quack/components/QuackForm"
 import { QuackList } from "@/features/quack/components/QuackList"
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_ProtectedPages/quacks")({
 })
 
 function QuacksPage() {
+  const { user } = useSession()
   const { q: search = "" } = Route.useSearch()
   const navigate = Route.useNavigate()
   // Keep the previous results on screen while the next search loads, so the
@@ -44,7 +46,10 @@ function QuacksPage() {
       <section className="mx-auto w-full max-w-2xl px-4 py-8">
         <h1 className="mb-4 text-2xl font-semibold tracking-tight">Quacks</h1>
 
-        <QuackForm className="mb-4" />
+        <QuackForm
+          defaultMood={user?.defaultMood}
+          className="mb-4"
+        />
 
         <QuackSearch
           value={search}

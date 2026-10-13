@@ -3,15 +3,17 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { QuackMood } from "@/types/moods"
+
 import { addQuack } from "@/features/quack/api/addQuack"
 import { QuackForm } from "@/features/quack/components/QuackForm"
 
 vi.mock("@/features/quack/api/addQuack", () => ({ addQuack: vi.fn() }))
 
-const renderForm = () =>
+const renderForm = (defaultMood?: QuackMood | null) =>
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <QuackForm />
+      <QuackForm defaultMood={defaultMood} />
     </QueryClientProvider>,
   )
 
@@ -38,5 +40,19 @@ describe("QuackForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Quack" }))
 
     expect(addQuack).toHaveBeenCalledWith({ text: "bread!", mood: "silly" }, expect.anything())
+  })
+
+  it("starts with the user's default mood when configured", async () => {
+    renderForm("happy")
+
+    expect(screen.getByRole("combobox", { name: "Mood" })).toHaveTextContent("Happy")
+
+    await userEvent.type(screen.getByLabelText("New quack"), "morning pond!")
+    await userEvent.click(screen.getByRole("button", { name: "Quack" }))
+
+    expect(addQuack).toHaveBeenCalledWith(
+      { text: "morning pond!", mood: "happy" },
+      expect.anything(),
+    )
   })
 })

@@ -2,8 +2,9 @@ import { z } from "zod"
 
 // Per the Applifting frontend playbook: validate every server payload with zod
 // and infer types from the schema rather than auto-generating them.
-// Mirrors the backend QUACK_MOODS — order here is the order shown in the form.
-export const quackMoodSchema = z.enum(["happy", "sad", "angry", "silly"])
+import { quackMoodSchema } from "@/types/moods"
+
+export { quackMoodSchema }
 
 export const quackUserSchema = z.object({
   id: z.string(),
