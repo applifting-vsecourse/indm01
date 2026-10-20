@@ -1,3 +1,4 @@
+// Example component test — the pattern to copy for your own components.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -5,6 +6,10 @@ import { describe, expect, it, vi } from "vitest"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
 import { QuackList } from "@/features/quack/components/QuackList"
+
+// A poll talks to the API, which isn't the point of a list test (and the real
+// client needs a configured environment to even import).
+vi.mock("@/features/quack/api/vote", () => ({ castVote: vi.fn(), removeVote: vi.fn() }))
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -28,6 +33,7 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
   userId: "u1",
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
+  poll: null,
   ...overrides,
 })
 

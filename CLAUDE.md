@@ -30,6 +30,10 @@ The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md
 
 Prisma passes `contains`/`startsWith`/`endsWith` values to `LIKE` unescaped, so `%` and `_` from a user act as wildcards (searching `%` matches everything). Escape `\`, `%` and `_` in the repository. Repository tests mock Prisma and won't catch this — run a new filter once against the dev database.
 
+### "One per…" rules belong in the database
+
+If the story says a person may do something once (one vote per poll, one reaction per quack), make it a unique index, and tie related rows together with a foreign key (a vote's answer must belong to the vote's poll) — a service check alone loses races and gets bypassed by the next write path. Computed counts (count the rows) beat stored counters for the same reason. Service tests mock Prisma and can't prove a constraint: try the forbidden insert once in `psql` against the dev database and see it rejected.
+
 ### Enforce authorization on the server, not just in UI
 
 Hiding an action in the frontend is a convenience, never a security boundary. Always enforce authorization rules on the server (in the service or guard) — verify ownership or roles (`admin`/`moderator`) and throw `ForbiddenException` (HTTP 403). The authenticated user identity (`userId`, `role`) must always come from the session (`@User()`), never from client input, query parameters, or request bodies.

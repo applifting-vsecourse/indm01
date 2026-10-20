@@ -3,7 +3,7 @@
 import { Quack } from '@/modules/quack/domain/quack';
 import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { mock } from 'jest-mock-extended';
 import { QuacksService } from './quacks.service';
 
@@ -15,6 +15,7 @@ const aQuack = (overrides: Partial<Quack> = {}): Quack => ({
   createdAt: new Date('2026-01-01T12:00:00Z'),
   updatedAt: new Date('2026-01-01T12:00:00Z'),
   user: { id: 'u1', name: 'Caffeinated Duck', username: 'CaffeinatedDuck' },
+  poll: null,
   ...overrides,
 });
 
@@ -29,7 +30,8 @@ describe('QuacksService', () => {
 
     await expect(service.getQuacks(user)).resolves.toEqual(quacks);
     expect(repository.getQuacks).toHaveBeenCalledTimes(1);
-    expect(repository.getQuacks).toHaveBeenCalledWith();
+    // the viewer's id is passed on so the repository can load their poll votes
+    expect(repository.getQuacks).toHaveBeenCalledWith('u1');
   });
 
   describe('search', () => {
@@ -53,7 +55,7 @@ describe('QuacksService', () => {
         '  pond   @CaffeinatedDuck ',
       );
 
-      expect(repository.getQuacks).toHaveBeenCalledWith({
+      expect(repository.getQuacks).toHaveBeenCalledWith('u1', {
         words: ['pond', 'CaffeinatedDuck'],
       });
     });
@@ -67,7 +69,7 @@ describe('QuacksService', () => {
 
         await service.getQuacks({ id: 'u1' } as Identity, search);
 
-        expect(repository.getQuacks).toHaveBeenCalledWith();
+        expect(repository.getQuacks).toHaveBeenCalledWith('u1');
         expect(log).not.toHaveBeenCalled();
       },
     );
@@ -105,6 +107,7 @@ describe('QuacksService', () => {
       text: 'hello',
       mood: null,
       userId: 'u1',
+      poll: undefined,
     });
   });
 
@@ -123,6 +126,79 @@ describe('QuacksService', () => {
       text: 'bread!',
       mood: 'silly',
       userId: 'u1',
+      poll: undefined,
+    });
+  });
+
+  describe('creating a poll', () => {
+    const user = { id: 'u1' } as Identity;
+    const now = new Date('2026-10-13T12:00:00Z');
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(now);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it.each([
+      ['1h', new Date('2026-10-13T13:00:00Z')],
+      ['1d', new Date('2026-10-14T12:00:00Z')],
+      ['1w', new Date('2026-10-20T12:00:00Z')],
+    ] as const)(
+      'closes a %s poll at the time the server works out',
+      async (duration, closesAt) => {
+        const repository = mock<QuackRepository>();
+        repository.createQuack.mockResolvedValue(aQuack());
+        const service = new QuacksService(repository);
+
+        await service.createQuack(user, {
+          text: 'Lunch?',
+          poll: { answers: ['Pizza', 'Thai'], duration },
+        });
+
+        expect(repository.createQuack).toHaveBeenCalledWith({
+          text: 'Lunch?',
+          mood: null,
+          userId: 'u1',
+          poll: { answers: ['Pizza', 'Thai'], closesAt },
+        });
+      },
+    );
+
+    it('stores the answers trimmed', async () => {
+      const repository = mock<QuackRepository>();
+      repository.createQuack.mockResolvedValue(aQuack());
+      const service = new QuacksService(repository);
+
+      await service.createQuack(user, {
+        text: 'Lunch?',
+        poll: { answers: ['  Pizza ', 'Thai'], duration: '1d' },
+      });
+
+      expect(repository.createQuack).toHaveBeenCalledWith(
+        expect.objectContaining({
+          poll: expect.objectContaining({ answers: ['Pizza', 'Thai'] }),
+        }),
+      );
+    });
+
+    it.each([
+      [['Pizza', 'Pizza']],
+      [['Pizza', ' pizza ']],
+      [['Pizza', 'Thai', 'PIZZA']],
+    ])('rejects duplicate answers %j', async (answers) => {
+      const repository = mock<QuackRepository>();
+      const service = new QuacksService(repository);
+
+      await expect(
+        service.createQuack(user, {
+          text: 'Lunch?',
+          poll: { answers, duration: '1d' },
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(repository.createQuack).not.toHaveBeenCalled();
     });
   });
 
