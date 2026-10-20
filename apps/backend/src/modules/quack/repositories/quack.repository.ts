@@ -4,10 +4,15 @@ import {
   User as PrismaUser,
 } from '@/generated/prisma/client';
 import { Quack, QuackMood } from '@/modules/quack/domain/quack';
+import {
+  mapPrismaPollToDomain,
+  pollInclude,
+  PrismaPollForViewer,
+} from '@/modules/quack/repositories/poll.mapper';
 import { Injectable } from '@nestjs/common';
 
 const mapPrismaQuackToDomain = (
-  quack: PrismaQuack & { user?: PrismaUser },
+  quack: PrismaQuack & { user?: PrismaUser; poll: PrismaPollForViewer | null },
 ): Quack => ({
   id: quack.id,
   text: quack.text,
@@ -22,6 +27,7 @@ const mapPrismaQuackToDomain = (
         username: quack.user.username ?? '',
       }
     : undefined,
+  poll: quack.poll ? mapPrismaPollToDomain(quack.poll) : null,
 });
 
 // Prisma passes `contains` through to (I)LIKE unescaped, so a search for "%"
@@ -38,10 +44,14 @@ export class QuackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Polls come back with the counts and the vote of `viewerId`.
    * With `words`, returns only quacks where every word appears (case-insensitive)
-   * in the text, the author's name or the author's username.
+   * in the text, the author's name, the author's username or a poll answer.
    */
-  async getQuacks(filter?: { words: string[] }): Promise<Quack[]> {
+  async getQuacks(
+    viewerId: string,
+    filter?: { words: string[] },
+  ): Promise<Quack[]> {
     const quacks = await this.prisma.quack.findMany({
       where: filter
         ? {
@@ -52,11 +62,18 @@ export class QuackRepository {
                 {
                   user: { username: { contains: word, mode: 'insensitive' } },
                 },
+                {
+                  poll: {
+                    answers: {
+                      some: { text: { contains: word, mode: 'insensitive' } },
+                    },
+                  },
+                },
               ],
             })),
           }
         : undefined,
-      include: { user: true },
+      include: { user: true, poll: { include: pollInclude(viewerId) } },
       orderBy: { createdAt: 'desc' },
     });
     return quacks.map(mapPrismaQuackToDomain);
@@ -66,14 +83,34 @@ export class QuackRepository {
     text: string;
     mood: QuackMood | null;
     userId: string;
+    poll?: { answers: string[]; closesAt: Date };
   }): Promise<Quack> {
+    const { poll } = createQuackData;
+    // One nested create: the quack, its poll and the answers are written in a
+    // single transaction.
     const quack = await this.prisma.quack.create({
       data: {
         text: createQuackData.text,
         mood: createQuackData.mood,
         user: { connect: { id: createQuackData.userId } },
+        poll: poll
+          ? {
+              create: {
+                closesAt: poll.closesAt,
+                answers: {
+                  create: poll.answers.map((text, position) => ({
+                    text,
+                    position,
+                  })),
+                },
+              },
+            }
+          : undefined,
       },
-      include: { user: true },
+      include: {
+        user: true,
+        poll: { include: pollInclude(createQuackData.userId) },
+      },
     });
     return mapPrismaQuackToDomain(quack);
   }

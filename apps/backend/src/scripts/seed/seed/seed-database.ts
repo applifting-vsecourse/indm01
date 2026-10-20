@@ -182,4 +182,41 @@ Please stop tagging me.`,
       createdAt: new Date(now - minutesAgo * MINUTE_IN_MS),
     });
   }
+
+  console.log('Creating example polls');
+
+  // A poll that closed with a tie, so the "all leaders are highlighted" case
+  // is on screen. It closed an hour after it was posted.
+  const closedPollPostedMinutesAgo = 1700;
+  await createQuack(prisma, {
+    text: 'Which bread is best for throwing at a pond?',
+    userId: breadCritic.id,
+    createdAt: new Date(now - closedPollPostedMinutesAgo * MINUTE_IN_MS),
+    poll: {
+      closesAt: new Date(
+        now - (closedPollPostedMinutesAgo - 60) * MINUTE_IN_MS,
+      ),
+      answers: [
+        { text: 'Sourdough', voters: [caffeinatedDuck, pondAdmin] },
+        { text: 'Multigrain', voters: [deepDuckThoughts, migrationSeason] },
+        { text: 'Rye', voters: [] },
+      ],
+    },
+  });
+
+  // An open poll with votes from several users. Its author can't vote in it.
+  await createQuack(prisma, {
+    text: 'Where do we go for lunch?',
+    mood: 'happy',
+    userId: caffeinatedDuck.id,
+    createdAt: new Date(now - 10 * MINUTE_IN_MS),
+    poll: {
+      closesAt: new Date(now + 24 * 60 * MINUTE_IN_MS - 10 * MINUTE_IN_MS),
+      answers: [
+        { text: 'Pizza', voters: [deepDuckThoughts, breadCritic] },
+        { text: 'Thai', voters: [migrationSeason] },
+        { text: 'Salad', voters: [] },
+      ],
+    },
+  });
 };

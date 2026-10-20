@@ -30,6 +30,10 @@ The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md
 
 Prisma passes `contains`/`startsWith`/`endsWith` values to `LIKE` unescaped, so `%` and `_` from a user act as wildcards (searching `%` matches everything). Escape `\`, `%` and `_` in the repository. Repository tests mock Prisma and won't catch this — run a new filter once against the dev database.
 
+### "One per…" rules belong in the database
+
+If the story says a person may do something once (one vote per poll, one reaction per quack), make it a unique index, and tie related rows together with a foreign key (a vote's answer must belong to the vote's poll) — a service check alone loses races and gets bypassed by the next write path. Computed counts (count the rows) beat stored counters for the same reason. Service tests mock Prisma and can't prove a constraint: try the forbidden insert once in `psql` against the dev database and see it rejected.
+
 ### The app is already running
 
 Assume the dev servers are up. If something is listening on the app's ports, that is this application: use it. Don't start a second instance, don't restart it, don't run `pnpm dev`.

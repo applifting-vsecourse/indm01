@@ -13,6 +13,7 @@ type QuackListProps = {
   onReload?: () => void
   /** The active search, so an empty list can say nothing matched rather than nothing exists. */
   search?: string
+  /** The signed-in user, passed on to polls and delete controls. */
   currentUserId?: string
 }
 
