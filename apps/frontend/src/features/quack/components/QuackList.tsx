@@ -14,6 +14,7 @@ type QuackListProps = {
   /** The active search, so an empty list can say nothing matched rather than nothing exists. */
   search?: string
   currentUserId?: string
+  currentUserRole?: string
 }
 
 export function QuackList({
@@ -23,6 +24,7 @@ export function QuackList({
   onReload,
   search,
   currentUserId,
+  currentUserRole,
 }: QuackListProps) {
   return (
     <div className="flex flex-col">
@@ -65,6 +67,7 @@ export function QuackList({
           key={quack.id}
           quack={quack}
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
         />
       ))}
     </div>

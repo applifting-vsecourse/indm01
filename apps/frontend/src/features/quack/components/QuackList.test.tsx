@@ -109,6 +109,22 @@ describe("QuackList", () => {
     expect(deleteButtons).toHaveLength(1)
   })
 
+  it("renders Delete action on every quack when current user is admin", () => {
+    const quack1 = quack({ id: "q1", userId: "user1", text: "first" })
+    const quack2 = quack({ id: "q2", userId: "user2", text: "second" })
+
+    renderList(
+      <QuackList
+        quacks={[quack1, quack2]}
+        currentUserId="admin-id"
+        currentUserRole="admin"
+      />,
+    )
+
+    const deleteButtons = screen.getAllByRole("button", { name: /delete quack/i })
+    expect(deleteButtons).toHaveLength(2)
+  })
+
   it("opens confirmation dialog before deleting", async () => {
     const myQuack = quack({ id: "q1", userId: "me" })
 

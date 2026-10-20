@@ -23,13 +23,16 @@ import { useDeleteQuack } from "@/features/quack/hooks/useDeleteQuack"
 type QuackItemProps = {
   quack: Quack
   currentUserId?: string
+  currentUserRole?: string
 }
 
-export function QuackItem({ quack, currentUserId }: QuackItemProps) {
+export function QuackItem({ quack, currentUserId, currentUserRole }: QuackItemProps) {
   const deleteQuackMutation = useDeleteQuack()
   const [isOpen, setIsOpen] = useState(false)
 
   const isOwner = Boolean(currentUserId && currentUserId === quack.userId)
+  const isAdmin = currentUserRole === "admin"
+  const canDelete = isOwner || isAdmin
 
   const { name, username } = quack.user
 
@@ -71,7 +74,7 @@ export function QuackItem({ quack, currentUserId }: QuackItemProps) {
             ) : null}
           </div>
 
-          {isOwner ? (
+          {canDelete ? (
             <Dialog
               open={isOpen}
               onOpenChange={setIsOpen}
