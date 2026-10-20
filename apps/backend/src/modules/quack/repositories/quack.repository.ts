@@ -77,4 +77,18 @@ export class QuackRepository {
     });
     return mapPrismaQuackToDomain(quack);
   }
+
+  async getQuackById(id: string): Promise<Quack | null> {
+    const quack = await this.prisma.quack.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    return quack ? mapPrismaQuackToDomain(quack) : null;
+  }
+
+  async deleteQuack(id: string): Promise<void> {
+    await this.prisma.quack.delete({
+      where: { id },
+    });
+  }
 }

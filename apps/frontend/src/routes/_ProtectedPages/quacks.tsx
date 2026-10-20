@@ -64,6 +64,7 @@ function QuacksPage() {
           isLoading={quacksQuery.isLoading || quacksQuery.isPlaceholderData}
           error={quacksQuery.error ?? undefined}
           search={search}
+          currentUserId={user?.id}
           // Only the error state offers a retry — posting invalidates the list,
           // and refocusing the tab refetches it.
           onReload={() => void quacksQuery.refetch()}
