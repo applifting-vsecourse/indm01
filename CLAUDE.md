@@ -34,6 +34,10 @@ Prisma passes `contains`/`startsWith`/`endsWith` values to `LIKE` unescaped, so 
 
 If the story says a person may do something once (one vote per poll, one reaction per quack), make it a unique index, and tie related rows together with a foreign key (a vote's answer must belong to the vote's poll) — a service check alone loses races and gets bypassed by the next write path. Computed counts (count the rows) beat stored counters for the same reason. Service tests mock Prisma and can't prove a constraint: try the forbidden insert once in `psql` against the dev database and see it rejected.
 
+### Enforce authorization on the server, not just in UI
+
+Hiding an action in the frontend is a convenience, never a security boundary. Always enforce authorization rules on the server (in the service or guard) — verify ownership or roles (`admin`/`moderator`) and throw `ForbiddenException` (HTTP 403). The authenticated user identity (`userId`, `role`) must always come from the session (`@User()`), never from client input, query parameters, or request bodies.
+
 ### The app is already running
 
 Assume the dev servers are up. If something is listening on the app's ports, that is this application: use it. Don't start a second instance, don't restart it, don't run `pnpm dev`.

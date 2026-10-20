@@ -15,6 +15,7 @@ type QuackListProps = {
   search?: string
   /** The signed-in user, passed on to polls and delete controls. */
   currentUserId?: string
+  currentUserRole?: string
 }
 
 export function QuackList({
@@ -24,6 +25,7 @@ export function QuackList({
   onReload,
   search,
   currentUserId,
+  currentUserRole,
 }: QuackListProps) {
   return (
     <div className="flex flex-col">
@@ -66,6 +68,7 @@ export function QuackList({
           key={quack.id}
           quack={quack}
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
         />
       ))}
     </div>
