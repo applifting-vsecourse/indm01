@@ -44,9 +44,8 @@ export class QuackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Polls come back with the counts and the vote of `viewerId`.
    * With `words`, returns only quacks where every word appears (case-insensitive)
-   * in the text, the author's name, the author's username or a poll answer.
+   * in the text, the author's name or the author's username.
    */
   async getQuacks(
     viewerId: string,
@@ -115,10 +114,13 @@ export class QuackRepository {
     return mapPrismaQuackToDomain(quack);
   }
 
-  async getQuackById(id: string): Promise<Quack | null> {
+  async getQuackById(id: string, viewerId?: string): Promise<Quack | null> {
     const quack = await this.prisma.quack.findUnique({
       where: { id },
-      include: { user: true },
+      include: {
+        user: true,
+        poll: { include: pollInclude(viewerId ?? '') },
+      },
     });
     return quack ? mapPrismaQuackToDomain(quack) : null;
   }

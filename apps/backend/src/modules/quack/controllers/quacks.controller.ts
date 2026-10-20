@@ -84,10 +84,7 @@ export class QuacksController {
   @ApiResponse({ status: 401, description: 'Not signed in' })
   @ApiResponse({ status: 403, description: 'Forbidden - not your quack' })
   @ApiResponse({ status: 404, description: 'Quack not found' })
-  async delete(
-    @User() user: Identity,
-    @Param('id') id: string,
-  ): Promise<void> {
+  async delete(@User() user: Identity, @Param('id') id: string): Promise<void> {
     await this.quacksService.deleteQuack(user, id);
   }
 }
