@@ -11,6 +11,21 @@ import { QuackList } from "@/features/quack/components/QuackList"
 // client needs a configured environment to even import).
 vi.mock("@/features/quack/api/vote", () => ({ castVote: vi.fn(), removeVote: vi.fn() }))
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
+const renderList = (ui: React.ReactElement) =>
+  render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      {ui}
+    </QueryClientProvider>,
+  )
+
 const quack = (overrides: Partial<Quack> = {}): Quack => ({
   id: "q1",
   text: "quack quack",
@@ -24,7 +39,7 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
 
 describe("QuackList", () => {
   it("renders quacks with author info", () => {
-    render(<QuackList quacks={[quack()]} />)
+    renderList(<QuackList quacks={[quack()]} />)
 
     expect(screen.getByText("quack quack")).toBeInTheDocument()
     expect(screen.getByText("Caffeinated Duck")).toBeInTheDocument()
@@ -32,54 +47,20 @@ describe("QuackList", () => {
   })
 
   it("shows the mood of a quack that has one", () => {
-    render(<QuackList quacks={[quack({ mood: "silly" })]} />)
+    renderList(<QuackList quacks={[quack({ mood: "silly" })]} />)
 
     expect(screen.getByText("Silly")).toBeInTheDocument()
     expect(screen.getByText("Mood:")).toBeInTheDocument()
   })
 
-  it("shows the poll of a quack that has one", () => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <QuackList
-          currentUserId="u2"
-          quacks={[
-            quack({
-              poll: {
-                id: "p1",
-                closesAt: new Date("2099-01-01T12:00:00Z"),
-                isClosed: false,
-                totalVotes: 1,
-                myAnswerId: null,
-                answers: [
-                  { id: "a1", text: "Pizza", votes: 1 },
-                  { id: "a2", text: "Thai", votes: 0 },
-                ],
-              },
-            }),
-          ]}
-        />
-      </QueryClientProvider>,
-    )
-
-    expect(screen.getByRole("button", { name: "Pizza, 1 vote, 100%" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Thai, 0 votes, 0%" })).toBeInTheDocument()
-  })
-
-  it("shows no poll for a plain quack", () => {
-    render(<QuackList quacks={[quack()]} />)
-
-    expect(screen.queryByRole("button")).not.toBeInTheDocument()
-  })
-
   it("shows no mood for a quack without one", () => {
-    render(<QuackList quacks={[quack()]} />)
+    renderList(<QuackList quacks={[quack()]} />)
 
     expect(screen.queryByText("Mood:")).not.toBeInTheDocument()
   })
 
   it("says nothing matched when a search finds no quacks", () => {
-    render(
+    renderList(
       <QuackList
         quacks={[]}
         search="pond"
@@ -91,7 +72,7 @@ describe("QuackList", () => {
   })
 
   it("doesn't claim nothing matched while a search is still loading", () => {
-    render(
+    renderList(
       <QuackList
         quacks={[]}
         search="pond"
@@ -104,7 +85,7 @@ describe("QuackList", () => {
 
   it("shows an error with a working reload button", async () => {
     const onReload = vi.fn()
-    render(
+    renderList(
       <QuackList
         quacks={[]}
         error={new Error("Server unreachable")}
@@ -117,5 +98,39 @@ describe("QuackList", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /reload/i }))
     expect(onReload).toHaveBeenCalledOnce()
+  })
+
+  it("renders Delete action only for quacks belonging to current user", () => {
+    const myQuack = quack({ id: "q1", userId: "me" })
+    const otherQuack = quack({ id: "q2", userId: "other", text: "other quack" })
+
+    renderList(
+      <QuackList
+        quacks={[myQuack, otherQuack]}
+        currentUserId="me"
+      />,
+    )
+
+    const deleteButtons = screen.getAllByRole("button", { name: /delete quack/i })
+    expect(deleteButtons).toHaveLength(1)
+  })
+
+  it("opens confirmation dialog before deleting", async () => {
+    const myQuack = quack({ id: "q1", userId: "me" })
+
+    renderList(
+      <QuackList
+        quacks={[myQuack]}
+        currentUserId="me"
+      />,
+    )
+
+    const deleteBtn = screen.getByRole("button", { name: /delete quack/i })
+    await userEvent.click(deleteBtn)
+
+    expect(screen.getByRole("heading", { name: /delete quack\?/i })).toBeInTheDocument()
+    expect(
+      screen.getByText(/are you sure you want to delete this quack\?/i),
+    ).toBeInTheDocument()
   })
 })

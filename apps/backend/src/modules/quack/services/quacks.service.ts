@@ -6,7 +6,13 @@ import {
 } from '@/modules/quack/domain/quack';
 import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 // "@CaffeinatedDuck" is how usernames are shown, so people type them that way.
 const toSearchWords = (search: string): string[] =>
@@ -63,6 +69,17 @@ export class QuacksService {
       userId: user.id,
       poll: quackData.poll ? this.toNewPoll(quackData.poll) : undefined,
     });
+  }
+
+  async deleteQuack(user: Identity, id: string): Promise<void> {
+    const quack = await this.quackRepository.getQuackById(id);
+    if (!quack) {
+      throw new NotFoundException('Quack not found');
+    }
+    if (quack.userId !== user.id) {
+      throw new ForbiddenException('You can only delete your own quacks');
+    }
+    await this.quackRepository.deleteQuack(id);
   }
 
   private toNewPoll(poll: { answers: string[]; duration: PollDuration }): {
