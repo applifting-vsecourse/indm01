@@ -20,11 +20,7 @@ const createTestQueryClient = () =>
   })
 
 const renderList = (ui: React.ReactElement) =>
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      {ui}
-    </QueryClientProvider>,
-  )
+  render(<QueryClientProvider client={createTestQueryClient()}>{ui}</QueryClientProvider>)
 
 const quack = (overrides: Partial<Quack> = {}): Quack => ({
   id: "q1",
@@ -145,8 +141,6 @@ describe("QuackList", () => {
     await userEvent.click(deleteBtn)
 
     expect(screen.getByRole("heading", { name: /delete quack\?/i })).toBeInTheDocument()
-    expect(
-      screen.getByText(/are you sure you want to delete this quack\?/i),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/are you sure you want to delete this quack\?/i)).toBeInTheDocument()
   })
 })
