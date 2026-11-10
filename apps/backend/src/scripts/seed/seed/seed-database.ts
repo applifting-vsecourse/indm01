@@ -174,12 +174,33 @@ Please stop tagging me.`,
 
   const now = Date.now();
 
+  let avengersQuackId: string | undefined;
+
   for (const { author, minutesAgo, mood, text } of exampleQuacks) {
-    await createQuack(prisma, {
+    const q = await createQuack(prisma, {
       text,
       mood,
       userId: author.id,
       createdAt: new Date(now - minutesAgo * MINUTE_IN_MS),
+    });
+    if (text.includes('assemble like the Avengers')) {
+      avengersQuackId = q.id;
+    }
+  }
+
+  if (avengersQuackId) {
+    console.log('Creating example replies');
+    await createQuack(prisma, {
+      text: 'Can confirm, I was one of the ducks.',
+      userId: deepDuckThoughts.id,
+      parentId: avengersQuackId,
+      createdAt: new Date(now - 80 * MINUTE_IN_MS),
+    });
+    await createQuack(prisma, {
+      text: 'Next time bring sourdough or do not bother assembling us.',
+      userId: breadCritic.id,
+      parentId: avengersQuackId,
+      createdAt: new Date(now - 65 * MINUTE_IN_MS),
     });
   }
 

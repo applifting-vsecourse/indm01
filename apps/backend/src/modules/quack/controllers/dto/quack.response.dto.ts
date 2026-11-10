@@ -1,5 +1,5 @@
 import { Quack, QUACK_MOODS, QuackMood } from '@/modules/quack/domain/quack';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PollResponseDto } from './poll.response.dto';
 
 class QuackUserDto {
@@ -39,24 +39,41 @@ export class QuackResponseDto {
   })
   poll!: PollResponseDto | null;
 
+  @ApiPropertyOptional({ type: String, nullable: true })
+  parentId?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  deletedAt?: Date | null;
+
+  @ApiPropertyOptional({ type: Number })
+  replyCount?: number;
+
   static fromDomain(quack: Quack): QuackResponseDto {
-    if (!quack.user) {
-      throw new Error(
-        `QuackResponseDto.fromDomain expected quack.user to be loaded for quack ${quack.id}`,
-      );
-    }
+    const isDeleted = Boolean(quack.deletedAt);
     return {
       id: quack.id,
-      text: quack.text,
-      mood: quack.mood,
-      userId: quack.userId,
+      text: isDeleted ? '' : quack.text,
+      mood: isDeleted ? null : quack.mood,
+      userId: isDeleted ? '' : quack.userId,
       createdAt: quack.createdAt,
-      user: {
-        id: quack.user.id,
-        name: quack.user.name,
-        username: quack.user.username,
-      },
-      poll: quack.poll ? PollResponseDto.fromDomain(quack.poll) : null,
+      user: isDeleted
+        ? {
+            id: '',
+            name: 'Deleted',
+            username: '',
+          }
+        : {
+            id: quack.user?.id ?? quack.userId,
+            name: quack.user?.name ?? '',
+            username: quack.user?.username ?? '',
+          },
+      poll:
+        isDeleted || !quack.poll
+          ? null
+          : PollResponseDto.fromDomain(quack.poll),
+      parentId: quack.parentId ?? null,
+      deletedAt: quack.deletedAt ?? null,
+      replyCount: quack.replyCount ?? 0,
     };
   }
 }

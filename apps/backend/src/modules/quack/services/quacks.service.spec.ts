@@ -200,6 +200,123 @@ describe('QuacksService', () => {
       ).rejects.toThrow(BadRequestException);
       expect(repository.createQuack).not.toHaveBeenCalled();
     });
+
+    describe('replies', () => {
+      it('creates a reply under a valid parent quack', async () => {
+        const parent = aQuack({ id: 'p1', parentId: null });
+        const createdReply = aQuack({
+          id: 'r1',
+          text: 'nice quack',
+          parentId: 'p1',
+        });
+        const repository = mock<QuackRepository>();
+        repository.getQuackById.mockResolvedValue(parent);
+        repository.createQuack.mockResolvedValue(createdReply);
+
+        const service = new QuacksService(repository);
+        const user = { id: 'u1' } as Identity;
+
+        const result = await service.createQuack(user, {
+          text: 'nice quack',
+          parentId: 'p1',
+        });
+
+        expect(result).toEqual(createdReply);
+        expect(repository.createQuack).toHaveBeenCalledWith({
+          text: 'nice quack',
+          mood: null,
+          parentId: 'p1',
+          userId: 'u1',
+          poll: undefined,
+        });
+      });
+
+      it('rejects creating a reply with a mood', async () => {
+        const repository = mock<QuackRepository>();
+        const service = new QuacksService(repository);
+        const user = { id: 'u1' } as Identity;
+
+        await expect(
+          service.createQuack(user, {
+            text: 'reply with mood',
+            mood: 'happy',
+            parentId: 'p1',
+          }),
+        ).rejects.toThrow(BadRequestException);
+        expect(repository.createQuack).not.toHaveBeenCalled();
+      });
+
+      it('rejects creating a reply with a poll', async () => {
+        const repository = mock<QuackRepository>();
+        const service = new QuacksService(repository);
+        const user = { id: 'u1' } as Identity;
+
+        await expect(
+          service.createQuack(user, {
+            text: 'reply with poll',
+            poll: { answers: ['a', 'b'], duration: '1d' },
+            parentId: 'p1',
+          }),
+        ).rejects.toThrow(BadRequestException);
+        expect(repository.createQuack).not.toHaveBeenCalled();
+      });
+
+      it('rejects replying to a non-existent parent quack', async () => {
+        const repository = mock<QuackRepository>();
+        repository.getQuackById.mockResolvedValue(null);
+        const service = new QuacksService(repository);
+        const user = { id: 'u1' } as Identity;
+
+        await expect(
+          service.createQuack(user, {
+            text: 'orphan reply',
+            parentId: 'non-existent',
+          }),
+        ).rejects.toThrow('Parent quack not found');
+        expect(repository.createQuack).not.toHaveBeenCalled();
+      });
+
+      it('rejects replying to a reply (nested threading)', async () => {
+        const replyParent = aQuack({ id: 'r1', parentId: 'root-quack' });
+        const repository = mock<QuackRepository>();
+        repository.getQuackById.mockResolvedValue(replyParent);
+        const service = new QuacksService(repository);
+        const user = { id: 'u1' } as Identity;
+
+        await expect(
+          service.createQuack(user, {
+            text: 'nested reply',
+            parentId: 'r1',
+          }),
+        ).rejects.toThrow('Cannot reply to a reply');
+        expect(repository.createQuack).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('getReplies', () => {
+      it('returns replies when parent exists', async () => {
+        const parent = aQuack({ id: 'p1' });
+        const replies = [aQuack({ id: 'r1', parentId: 'p1' })];
+        const repository = mock<QuackRepository>();
+        repository.getQuackById.mockResolvedValue(parent);
+        repository.getReplies.mockResolvedValue(replies);
+
+        const service = new QuacksService(repository);
+        await expect(service.getReplies('p1')).resolves.toEqual(replies);
+        expect(repository.getReplies).toHaveBeenCalledWith('p1');
+      });
+
+      it('throws NotFoundException when parent does not exist', async () => {
+        const repository = mock<QuackRepository>();
+        repository.getQuackById.mockResolvedValue(null);
+
+        const service = new QuacksService(repository);
+        await expect(service.getReplies('p999')).rejects.toThrow(
+          'Quack not found',
+        );
+        expect(repository.getReplies).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('deleteQuack', () => {

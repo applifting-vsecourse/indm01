@@ -54,17 +54,42 @@ export class QuacksService {
     return quacks;
   }
 
+  async getReplies(parentId: string): Promise<Quack[]> {
+    const parent = await this.quackRepository.getQuackById(parentId);
+    if (!parent) {
+      throw new NotFoundException('Quack not found');
+    }
+    return this.quackRepository.getReplies(parentId);
+  }
+
   async createQuack(
     user: Identity,
     quackData: {
       text: string;
       mood?: QuackMood | null;
       poll?: { answers: string[]; duration: PollDuration } | null;
+      parentId?: string | null;
     },
   ): Promise<Quack> {
+    if (quackData.parentId) {
+      if (quackData.poll || quackData.mood) {
+        throw new BadRequestException('Replies cannot have polls or moods');
+      }
+      const parent = await this.quackRepository.getQuackById(
+        quackData.parentId,
+      );
+      if (!parent) {
+        throw new NotFoundException('Parent quack not found');
+      }
+      if (parent.parentId) {
+        throw new BadRequestException('Cannot reply to a reply');
+      }
+    }
+
     return this.quackRepository.createQuack({
       text: quackData.text,
       mood: quackData.mood ?? null,
+      parentId: quackData.parentId,
       // the author is taken from the session, never from the request body
       userId: user.id,
       poll: quackData.poll ? this.toNewPoll(quackData.poll) : undefined,

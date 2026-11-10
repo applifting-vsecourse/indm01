@@ -41,7 +41,14 @@ model Quack {
   updatedAt DateTime   @default(now()) @updatedAt
   poll      Poll?
 
+  parentId  String?
+  parent    Quack?     @relation("QuackReplies", fields: [parentId], references: [id], onDelete: Restrict)
+  replies   Quack[]    @relation("QuackReplies")
+  deletedAt DateTime?
+
   @@index([userId])
+  @@index([parentId])
+  @@index([deletedAt])
   @@map("quack")
 }
 

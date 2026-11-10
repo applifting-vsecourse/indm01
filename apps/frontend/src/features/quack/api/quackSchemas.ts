@@ -40,6 +40,9 @@ export const quackSchema = z.object({
   createdAt: z.coerce.date(),
   user: quackUserSchema,
   poll: pollSchema.nullable(),
+  parentId: z.string().nullable().optional(),
+  deletedAt: z.coerce.date().nullable().optional(),
+  replyCount: z.number().int().optional(),
 })
 
 export const quacksSchema = z.array(quackSchema)
