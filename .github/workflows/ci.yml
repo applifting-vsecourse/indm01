@@ -50,3 +50,137 @@ jobs:
 
       - name: Build frontend
         run: pnpm frontend build
+
+  test-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: quacker
+          POSTGRES_PASSWORD: quacker
+          POSTGRES_DB: quacker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create env files
+        run: pnpm env:check
+
+      - name: Generate Prisma client
+        run: pnpm backend prisma:generate
+
+      - name: Run backend integration tests
+        env:
+          DATABASE_URL: postgresql://quacker:quacker@localhost:5432/quacker_test
+          TEST_DATABASE_URL: postgresql://quacker:quacker@localhost:5432/quacker_test
+        run: pnpm backend test:int
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: quacker
+          POSTGRES_PASSWORD: quacker
+          POSTGRES_DB: quacker
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create env files
+        run: pnpm env:check
+
+      - name: Generate Prisma client
+        run: pnpm backend prisma:generate
+
+      - name: Run database migrations
+        run: pnpm backend migrate
+
+      - name: Seed database
+        run: pnpm backend seed
+
+      - name: Build backend
+        run: pnpm backend build
+
+      - name: Build frontend
+        run: pnpm frontend build
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+      - name: Start backend and frontend and run E2E tests
+        run: |
+          set -a
+          source apps/backend/.env
+          set +a
+          NODE_ENV=production node apps/backend/dist/main &
+          BACKEND_PID=$!
+          pnpm --filter frontend exec vite preview --port 3050 --strictPort &
+          FRONTEND_PID=$!
+
+          trap 'kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:4050/api/docs >/dev/null 2>&1 && curl -sf http://localhost:3050 >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          curl -sf http://localhost:4050/api/docs >/dev/null
+          curl -sf http://localhost:3050 >/dev/null
+
+          pnpm frontend e2e
+
+  test-changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check for removed or rewritten lines in test files
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          CHANGED=$(git diff --numstat "${BASE}...HEAD" -- '*.spec.ts' '*.int-spec.ts' '*.test.tsx' 'apps/frontend/e2e' | awk '$2 != "-" && $2 > 0 { print $3 " (" $2 " deleted/rewritten lines)" }')
+          if [ -n "$CHANGED" ]; then
+            echo "Test files with removed or rewritten lines:"
+            echo "$CHANGED"
+            exit 1
+          fi
+          echo "No existing test lines were removed or rewritten."
