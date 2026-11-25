@@ -4,6 +4,13 @@ export type QuackAuthor = {
   username: string;
 };
 
+export type QuackLiker = QuackAuthor;
+
+export type QuackLikeStatus = {
+  likeCount: number;
+  likedByMe: boolean;
+};
+
 export const QUACK_MOODS = ['happy', 'sad', 'angry', 'silly'] as const;
 
 export type QuackMood = (typeof QUACK_MOODS)[number];
@@ -42,4 +49,6 @@ export type Quack = {
   parentId?: string | null;
   deletedAt?: Date | null;
   replyCount?: number;
+  likeCount?: number;
+  likedByMe?: boolean;
 };
