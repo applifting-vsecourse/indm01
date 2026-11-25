@@ -43,12 +43,23 @@ export const quackSchema = z.object({
   parentId: z.string().nullable().optional(),
   deletedAt: z.coerce.date().nullable().optional(),
   replyCount: z.number().int().optional(),
+  likeCount: z.number().int().optional(),
+  likedByMe: z.boolean().optional(),
 })
 
 export const quacksSchema = z.array(quackSchema)
+
+export const quackLikerSchema = quackUserSchema
+export const quackLikersSchema = z.array(quackLikerSchema)
+export const quackLikeStatusSchema = z.object({
+  likeCount: z.number().int(),
+  likedByMe: z.boolean(),
+})
 
 export type Quack = z.infer<typeof quackSchema>
 export type Poll = z.infer<typeof pollSchema>
 export type PollAnswer = z.infer<typeof pollAnswerSchema>
 export type PollDuration = (typeof POLL_DURATIONS)[number]
 export type QuackMood = z.infer<typeof quackMoodSchema>
+export type QuackLiker = z.infer<typeof quackLikerSchema>
+export type QuackLikeStatus = z.infer<typeof quackLikeStatusSchema>

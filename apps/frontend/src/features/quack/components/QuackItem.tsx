@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/date"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
+import { QuackLikeControls } from "@/features/quack/components/QuackLikeControls"
 import { QuackMoodLabel } from "@/features/quack/components/QuackMoodLabel"
 import { QuackPoll } from "@/features/quack/components/QuackPoll"
 import { ReplySection } from "@/features/quack/components/ReplySection"
@@ -146,6 +147,15 @@ export function QuackItem({ quack, currentUserId, currentUserRole }: QuackItemPr
         ) : null}
 
         <div className="mt-2 flex items-center gap-4">
+          {!isDeleted ? (
+            <QuackLikeControls
+              quackId={quack.id}
+              likeCount={quack.likeCount ?? 0}
+              isLiked={quack.likedByMe ?? false}
+              variant="quack"
+            />
+          ) : null}
+
           <Button
             variant="ghost"
             size="sm"

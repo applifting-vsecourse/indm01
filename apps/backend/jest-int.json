@@ -1,0 +1,29 @@
+{
+  "moduleFileExtensions": ["js", "mjs", "json", "ts", "tsx"],
+  "rootDir": "./",
+  "moduleDirectories": ["node_modules"],
+  "testRegex": "\\.int-spec\\.ts$",
+  "transform": {
+    "^.+\\.tsx?$": "ts-jest",
+    "^.+\\.m?jsx?$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "allowJs": true,
+          "esModuleInterop": true
+        },
+        "diagnostics": false
+      }
+    ]
+  },
+  "transformIgnorePatterns": [
+    "node_modules[\\\\/](?!\\.pnpm[\\\\/]|(?:better-auth|@better-auth|@better-fetch|better-call|jose|@noble|@oslojs|rou3|uncrypto|defu|kysely|nanostores|zod|superjson|@react-email|react-email)[\\\\/]).*(?<!\\.mjs)$"
+  ],
+  "testEnvironment": "node",
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1"
+  },
+  "globalSetup": "<rootDir>/test/global-setup.ts",
+  "setupFiles": ["<rootDir>/test/setup-env.ts"],
+  "maxWorkers": 1
+}

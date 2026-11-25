@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/date"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
+import { QuackLikeControls } from "@/features/quack/components/QuackLikeControls"
 import { UsersName } from "@/features/quack/components/UsersName"
 import { UsersUserName } from "@/features/quack/components/UsersUserName"
 import { useDeleteQuack } from "@/features/quack/hooks/useDeleteQuack"
@@ -111,6 +112,15 @@ export function ReplyItem({ reply, currentUserId, currentUserRole }: ReplyItemPr
           ) : null}
         </div>
         <p className="text-sm break-words whitespace-pre-line">{reply.text}</p>
+        <div className="mt-1 flex items-center gap-2">
+          <QuackLikeControls
+            quackId={reply.id}
+            parentId={reply.parentId}
+            likeCount={reply.likeCount ?? 0}
+            isLiked={reply.likedByMe ?? false}
+            variant="reply"
+          />
+        </div>
       </div>
     </div>
   )
