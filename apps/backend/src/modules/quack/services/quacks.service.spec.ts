@@ -20,7 +20,7 @@ const aQuack = (overrides: Partial<Quack> = {}): Quack => ({
 });
 
 describe('QuacksService', () => {
-  it('returns quacks from the repository (gate check)', async () => {
+  it('returns quacks from the repository', async () => {
     const quacks = [aQuack()];
     const repository = mock<QuackRepository>();
     repository.getQuacks.mockResolvedValue(quacks);
