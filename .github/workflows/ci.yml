@@ -147,7 +147,7 @@ jobs:
           set -a
           source apps/backend/.env
           set +a
-          NODE_ENV=production node apps/backend/dist/main &
+          node apps/backend/dist/main &
           BACKEND_PID=$!
           pnpm --filter frontend exec vite preview --port 3050 --strictPort &
           FRONTEND_PID=$!

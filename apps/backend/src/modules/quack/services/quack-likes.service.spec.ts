@@ -37,7 +37,9 @@ describe('QuackLikesService', () => {
 
   it('R2: allows an author to like their own quack', async () => {
     const repo = mock<QuackLikeRepository>();
-    repo.findTargetQuack.mockResolvedValue(anActiveQuack({ userId: author.id }));
+    repo.findTargetQuack.mockResolvedValue(
+      anActiveQuack({ userId: author.id }),
+    );
     repo.addLike.mockResolvedValue();
     repo.getLikeStatus.mockResolvedValue({ likeCount: 1, likedByMe: true });
 
