@@ -45,11 +45,26 @@ model Quack {
   parent    Quack?     @relation("QuackReplies", fields: [parentId], references: [id], onDelete: Restrict)
   replies   Quack[]    @relation("QuackReplies")
   deletedAt DateTime?
+  likes     QuackLike[]
 
   @@index([userId])
   @@index([parentId])
   @@index([deletedAt])
   @@map("quack")
+}
+
+model QuackLike {
+  id        String   @id @default(cuid())
+  quack     Quack    @relation(fields: [quackId], references: [id], onDelete: Cascade)
+  quackId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([quackId, userId])
+  @@index([quackId, createdAt])
+  @@index([userId])
+  @@map("quack_like")
 }
 
 model Poll {
@@ -156,6 +171,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   quacks          Quack[]
+  quackLikes      QuackLike[]
   pollVotes       PollVote[]
   role            UserRole  @default(user)
 

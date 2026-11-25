@@ -54,12 +54,14 @@ export class QuacksService {
     return quacks;
   }
 
-  async getReplies(parentId: string): Promise<Quack[]> {
+  async getReplies(parentId: string, viewerId?: string): Promise<Quack[]> {
     const parent = await this.quackRepository.getQuackById(parentId);
     if (!parent) {
       throw new NotFoundException('Quack not found');
     }
-    return this.quackRepository.getReplies(parentId);
+    return viewerId
+      ? this.quackRepository.getReplies(parentId, viewerId)
+      : this.quackRepository.getReplies(parentId);
   }
 
   async createQuack(

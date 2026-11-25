@@ -48,6 +48,12 @@ export class QuackResponseDto {
   @ApiPropertyOptional({ type: Number })
   replyCount?: number;
 
+  @ApiProperty({ type: Number })
+  likeCount!: number;
+
+  @ApiProperty({ type: Boolean })
+  likedByMe!: boolean;
+
   static fromDomain(quack: Quack): QuackResponseDto {
     const isDeleted = Boolean(quack.deletedAt);
     return {
@@ -74,6 +80,8 @@ export class QuackResponseDto {
       parentId: quack.parentId ?? null,
       deletedAt: quack.deletedAt ?? null,
       replyCount: quack.replyCount ?? 0,
+      likeCount: isDeleted ? 0 : (quack.likeCount ?? 0),
+      likedByMe: isDeleted ? false : Boolean(quack.likedByMe),
     };
   }
 }

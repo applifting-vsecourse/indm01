@@ -15,7 +15,8 @@ const mapPrismaQuackToDomain = (
   quack: PrismaQuack & {
     user?: PrismaUser;
     poll?: PrismaPollForViewer | null;
-    _count?: { replies: number };
+    likes?: Array<{ id: string }>;
+    _count?: { replies?: number; likes?: number };
   },
 ): Quack => ({
   id: quack.id,
@@ -27,6 +28,8 @@ const mapPrismaQuackToDomain = (
   parentId: quack.parentId,
   deletedAt: quack.deletedAt,
   replyCount: quack._count?.replies ?? 0,
+  likeCount: quack._count?.likes ?? 0,
+  likedByMe: (quack.likes?.length ?? 0) > 0,
   user: quack.user
     ? {
         id: quack.user.id,
@@ -91,11 +94,16 @@ export class QuackRepository {
       include: {
         user: true,
         poll: { include: pollInclude(viewerId) },
+        likes: {
+          where: { userId: viewerId },
+          select: { id: true },
+        },
         _count: {
           select: {
             replies: {
               where: { deletedAt: null },
             },
+            likes: true,
           },
         },
       },
@@ -104,7 +112,7 @@ export class QuackRepository {
     return quacks.map(mapPrismaQuackToDomain);
   }
 
-  async getReplies(parentId: string): Promise<Quack[]> {
+  async getReplies(parentId: string, viewerId?: string): Promise<Quack[]> {
     const replies = await this.prisma.quack.findMany({
       where: {
         parentId,
@@ -112,6 +120,19 @@ export class QuackRepository {
       },
       include: {
         user: true,
+        ...(viewerId
+          ? {
+              likes: {
+                where: { userId: viewerId },
+                select: { id: true },
+              },
+            }
+          : {}),
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -151,11 +172,16 @@ export class QuackRepository {
       include: {
         user: true,
         poll: { include: pollInclude(createQuackData.userId) },
+        likes: {
+          where: { userId: createQuackData.userId },
+          select: { id: true },
+        },
         _count: {
           select: {
             replies: {
               where: { deletedAt: null },
             },
+            likes: true,
           },
         },
       },
@@ -169,11 +195,20 @@ export class QuackRepository {
       include: {
         user: true,
         poll: { include: pollInclude(viewerId ?? '') },
+        ...(viewerId
+          ? {
+              likes: {
+                where: { userId: viewerId },
+                select: { id: true },
+              },
+            }
+          : {}),
         _count: {
           select: {
             replies: {
               where: { deletedAt: null },
             },
+            likes: true,
           },
         },
       },
@@ -188,17 +223,22 @@ export class QuackRepository {
 
     if (activeRepliesCount > 0) {
       // Tombstone: scrub content and keep row to preserve thread continuity
-      await this.prisma.poll.deleteMany({
-        where: { quackId: id },
-      });
-      await this.prisma.quack.update({
-        where: { id },
-        data: {
-          text: '',
-          mood: null,
-          deletedAt: new Date(),
-        },
-      });
+      await this.prisma.$transaction([
+        this.prisma.poll.deleteMany({
+          where: { quackId: id },
+        }),
+        this.prisma.quackLike.deleteMany({
+          where: { quackId: id },
+        }),
+        this.prisma.quack.update({
+          where: { id },
+          data: {
+            text: '',
+            mood: null,
+            deletedAt: new Date(),
+          },
+        }),
+      ]);
     } else {
       // Leaf quack: hard delete
       await this.prisma.quack.delete({
