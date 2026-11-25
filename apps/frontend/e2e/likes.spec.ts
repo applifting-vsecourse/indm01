@@ -98,7 +98,7 @@ test("E2: user can like and unlike a reply", async ({ browser }) => {
   await userB.goto("/quacks")
   const articleB = userB.getByRole("article").filter({ hasText: quackText })
   await articleB.getByRole("button", { name: /show replies/i }).click()
-  await articleB.getByPlaceholder(/write a reply/i).fill(replyText)
+  await articleB.getByPlaceholder(/quack your reply/i).fill(replyText)
   await articleB.getByRole("button", { name: "Reply", exact: true }).click()
   await expect(articleB).toContainText(replyText)
 
