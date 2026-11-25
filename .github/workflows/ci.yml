@@ -166,6 +166,16 @@ jobs:
 
           pnpm frontend e2e
 
+      - name: Print Playwright failure context
+        if: failure()
+        run: |
+          for f in apps/frontend/test-results/*/error-context.md; do
+            if [ -f "$f" ]; then
+              echo "=== $f ==="
+              cat "$f"
+            fi
+          done
+
   test-changes:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

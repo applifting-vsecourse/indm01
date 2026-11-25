@@ -33,12 +33,7 @@ export function QuackLikeControls({
 }: QuackLikeControlsProps) {
   const [isLikersOpen, setIsLikersOpen] = useState(false)
   const toggleLikeMutation = useToggleQuackLike(quackId, parentId)
-  const {
-    data: likers,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuackLikers(quackId, isLikersOpen)
+  const { data: likers, isLoading, isError, refetch } = useQuackLikers(quackId, isLikersOpen)
 
   const isReply = variant === "reply"
   const likeLabel = isLiked
